@@ -225,16 +225,41 @@
         var resources = sess.getItems("avl_resource");
         var columns = $("ul li .rep_col:checked"); // get columns, that need to be in a report
 
-        var c = "",
-          cl = ""; // columns and columnsLabels variables
+        var c = "";
+        // cl = ""; // columns and columnsLabels variables
+
+        function getColumnsLabelsString() {
+          var selectedLabels = [];
+
+          // Check if "Driver Name" is selected
+          if ($("#driver_name").prop("checked")) {
+            selectedLabels.push("Driver Name");
+          }
+
+          // Check if "Driver Score" is selected
+          if ($("#driver_score").prop("checked")) {
+            selectedLabels.push("Driver Score");
+          }
+
+          // Check other selected columns
+          $(".rep_col:checked").each(function () {
+            selectedLabels.push($(this).next("label").text()); // Append the label of the selected column
+          });
+
+          // Construct the comma-separated string
+          var labelsString = selectedLabels.join(",");
+
+          return res.getName();
+        }
+
         for (var i = 0; i < columns.length; i++) {
           // cycle to generate columns and columnsLabels
           c += (c == "" ? "" : ",") + columns[i].id;
-          cl += (cl == "" ? "" : ",") + $(columns[i].nextSibling).text(); //.innerText;
+          // cl += (cl == "" ? "" : ",") + $(columns[i].nextSibling).text(); //.innerText;
         }
 
-        console.log(c);
-        console.log(cl);
+        // console.log(c);
+        // console.log(cl);
         // Loop through all resources
         for (var i = 0; i < resources.length; i++) {
           var res = resources[i];
@@ -243,6 +268,7 @@
           // Fetch all units for the current resource
           // var units = res.getUnits();
           var units = sess.getItems("avl_unit", resId);
+          // console.log(units);
           // changes
 
           // Specify time interval object
@@ -268,7 +294,7 @@
                   n: templ,
                   l: $("#templ option[value='" + templ + "']").text(),
                   c: c,
-                  cl: cl,
+                  cl: getColumnsLabelsString(),
                   s: "",
                   sl: "",
                   p: "",
@@ -285,6 +311,8 @@
                 },
               ],
             };
+
+            console.log(template);
 
             res.execReport(
               template,
