@@ -195,6 +195,13 @@
             if (data[i].n == selectedTmpl) {
               //draw only selected report table
               col = data[i].col;
+
+              // Add checkboxes for "Driver Name" and "Driver Score"
+              html +=
+                '<li><input class="rep_col" type="checkbox" id="driver_name"/><label for="driver_name">Driver Name</label></li>';
+              html +=
+                '<li><input class="rep_col" type="checkbox" id="driver_score"/><label for="driver_score">Driver Score</label></li>';
+
               for (var j = 0; j < col.length; j++) {
                 // construct Select object using found report columns
                 if (col[j].l != '' && col[j].n != '') {
@@ -277,6 +284,10 @@
             },
           ],
         };
+        // for (var i = 0; i < units.length; i++) {
+        //console.log(units$('#units').val());
+        //}
+
         res.execReport(
           template,
           id_unit,
@@ -303,10 +314,48 @@
         // show result after report execute
         var tables = result.getTables(); // get report tables
         if (!tables) return; // exit if no tables
+        const date = new Date();
+        const months = [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
+        ];
+        let month = months[date.getMonth()];
         for (var i = 0; i < tables.length; i++) {
           // cycle on tables
           // html contains information about one table
           var html =
+            '<h1>' +
+            'Drivers Performance Report' +
+            '</h1>' +
+            '<table style="width:100%"><tr style="border:none">' +
+            '<td style="border:none">' +
+            'Date/Time:    ' +
+            date.getDate() +
+            '-' +
+            month +
+            '-' +
+            date.getFullYear() +
+            ' ' +
+            date.getHours() +
+            ':' +
+            date.getMinutes() +
+            ':' +
+            date.getSeconds() +
+            '</td>' +
+            '<td  style="border:none">' +
+            'GMT Time Zone:    ' +
+            date +
+            '</td></tr></table>' +
             '<b>' +
             tables[i].label +
             "</b><div class='wrap'><table style='width:100%'>";
