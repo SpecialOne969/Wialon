@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Wialon Playground - Execute custom report</title>
+		<script
+			type="text/javascript"
+			src="//code.jquery.com/jquery-latest.min.js"
+		></script>
+		<script
+			type="text/javascript"
+			src="//hst-api.wialon.com/wsdk/script/wialon.js"
+		></script>
+	</head>
+	<body>
+		<style>
+			td,
+			th {
+				border: 1px solid #c6c6c6;
+			}
+			.wrap {
+				max-height: 150px;
+				overflow-y: auto;
+			}
+			.odd,
+			th {
+				background: #eee;
+				border: 1px solid #c6c6c6;
+			}
+			ul {
+				list-style: none;
+				margin: 0px;
+				padding: 0px;
+				display: block;
+				overflow-y: auto;
+				max-height: 200px;
+				width: 300px;
+			}
+			label {
+				cursor: pointer;
+			}
+			body {
+				font-family: Arial, sans-serif;
+				margin: 0;
+				padding: 0;
+			}
+
+			nav {
+				background-color: #333;
+				overflow: hidden;
+			}
+
+			nav a {
+				float: left;
+				display: block;
+				color: white;
+				text-align: center;
+				padding: 14px 16px;
+				text-decoration: none;
+			}
+		</style>
+		<nav>
+			<a href="/index.html">Home</a>
+			<a href="/template.html">Create Template</a>
+			<a href="/result.html">result</a>
+			<a href="/unit.html">unit</a>
+		</nav>
+
+		<table>
+			<tr>
+				<td>Select resource and table:</td>
+				<td>
+					<select id="res"></select>
+					<select id="templ">
+						<option value="unit_trips">Trips</option>
+						<option value="unit_stays">Stays</option>
+					</select>
+				</td>
+			</tr>
+			<tr>
+				<td>Select time interval:</td>
+				<td>
+					<select id="interval">
+						<option
+							value="86400"
+							title="60 sec * 60 minutes * 24 hours = 86400 sec = 1 day"
+						>
+							Last day
+						</option>
+						<option value="604800" title="86400 sec * 7 days = 604800 sec = 1 week">
+							Last week
+						</option>
+						<option
+							value="2592000"
+							title="86400 sec * 30 days = 2592000 sec = 1 month"
+						>
+							Last month
+						</option>
+					</select>
+				</td>
+			</tr>
+			<tr>
+				<td>Report Columns:</td>
+				<td><ul id="columns"></ul></td>
+			</tr>
+			<tr>
+				<td colspan="2" style="text-align: center">
+					<input type="button" value="Execute report" id="exec_btn" />
+				</td>
+			</tr>
+		</table>
+		<div id="log"></div>
+
+		<script type="text/javascript">
+			// Print message to log
+
+			function msg(text) {
+				$("#log").prepend(text + "<br/>");
+			}
+
+			function init() {
+				var res_flags =
+					wialon.item.Item.dataFlag.base | wialon.item.Resource.dataFlag.reports;
+				var unit_flags = wialon.item.Item.dataFlag.base;
+
+				var sess = wialon.core.Session.getInstance();
+
+				sess.loadLibrary("resourceReports");
+
+				sess.updateDataFlags(
+					[
+						{
+							type: "type",
+							data: "avl_resource",
+							flags: res_flags,
+							mode: 0,
+						},
+						{
+							type: "type",
+							data: "avl_unit",
+							flags: unit_flags,
+							mode: 0,
+						},
+					],
+					function (code) {
+						if (code) {
+							msg(wialon.core.Errors.getErrorText(code));
+							return;
+						}
+
+						var resources = sess.getItems("avl_resource");
+						if (!resources || !resources.length) {
+							msg("Resources not found");
+							return;
+						}
+
+						for (var i = 0; i < resources.length; i++) {
+							$("#res").append(
+								"<option value='" +
+									resources[i].getId() +
+									"'>" +
+									resources[i].getName() +
+									"</option>"
+							);
+						}
+
+						// Note: Removed the code to populate units as it's not needed here.
+					}
+				);
+				drawCheckboxes();
+				$("#templ").change(drawCheckboxes);
+			}
+
+			function drawCheckboxes() {
+				// get available reports table
+				wialon.core.Session.getInstance().getReportTables(function (code, data) {
+					var selectedTmpl = $("#templ").val();
+					var col = [];
+					var html = "";
+
+					for (var i = 0; i < data.length; i++) {
+						if (data[i].n == selectedTmpl) {
+							//draw only selected report table
+							col = data[i].col;
+
+							// Add checkboxes for "Driver Name" and "Driver Score"
+							html +=
+								'<li><input class="rep_col" type="checkbox" id="driver_name"/><label for="driver_name">Driver Name</label></li>';
+							html +=
+								'<li><input class="rep_col" type="checkbox" id="driver_score"/><label for="driver_score">Driver Score</label></li>';
+
+							for (var j = 0; j < col.length; j++) {
+								// construct Select object using found report columns
+								if (col[j].l != "" && col[j].n != "") {
+									html +=
+										'<li><input class="rep_col" type="checkbox" id="' +
+										col[j].n +
+										'"/><label for="' +
+										col[j].n +
+										'">' +
+										col[j].l +
+										"</label></li>";
+								}
+							}
+						}
+					}
+					$("#columns").html(html);
+				});
+			}
+
+			function executeReport() {
+				var templ = $("#templ").val();
+				var time = $("#interval").val();
+
+				var sess = wialon.core.Session.getInstance();
+
+				// Get all resources
+				var resources = sess.getItems("avl_resource");
+				var columns = $("ul li .rep_col:checked"); // get columns, that need to be in a report
+
+				var c = "";
+				// cl = ""; // columns and columnsLabels variables
+
+				function getColumnsLabelsString() {
+					var selectedLabels = [];
+
+					// Check if "Driver Name" is selected
+					if ($("#driver_name").prop("checked")) {
+						selectedLabels.push("Driver Name");
+					}
+
+					// Check if "Driver Score" is selected
+					if ($("#driver_score").prop("checked")) {
+						selectedLabels.push("Driver Score");
+					}
+
+					// Check other selected columns
+					$(".rep_col:checked").each(function () {
+						selectedLabels.push($(this).next("label").text()); // Append the label of the selected column
+					});
+
+					// Construct the comma-separated string
+					var labelsString = selectedLabels.join(",");
+
+					return res.getName();
+				}
+
+				for (var i = 0; i < columns.length; i++) {
+					// cycle to generate columns and columnsLabels
+					c += (c == "" ? "" : ",") + columns[i].id;
+					// cl += (cl == "" ? "" : ",") + $(columns[i].nextSibling).text(); //.innerText;
+				}
+
+				// console.log(c);
+				// console.log(cl);
+				// Loop through all resources
+				for (var i = 0; i < resources.length; i++) {
+					var res = resources[i];
+					var resId = res.getId();
+
+					// Fetch all units for the current resource
+					// var units = res.getUnits();
+					var units = sess.getItems("avl_unit", resId);
+					// console.log(units);
+					// changes
+
+					// Specify time interval object
+					var to = sess.getServerTime();
+					var from = to - parseInt(time, 10);
+					var interval = {
+						from: from,
+						to: to,
+						flags: wialon.item.MReport.intervalFlag.absolute,
+					};
+
+					// Loop through units and execute the report
+					for (var j = 0; j < units.length; j++) {
+						var id_unit = units[j].getId();
+
+						var template = {
+							id: 0,
+							n: templ,
+							ct: "avl_unit",
+							p: "",
+							tbl: [
+								{
+									n: templ,
+									l: $("#templ option[value='" + templ + "']").text(),
+									c: c,
+									cl: getColumnsLabelsString(),
+									s: "",
+									sl: "",
+									p: "",
+									sch: {
+										f1: 0,
+										f2: 0,
+										t1: 0,
+										t2: 0,
+										m: 0,
+										y: 0,
+										w: 0,
+									},
+									f: 0,
+								},
+							],
+						};
+
+						console.log(template);
+
+						res.execReport(template, id_unit, 0, interval, function (code, data) {
+							if (code) {
+								msg(wialon.core.Errors.getErrorText(code));
+								return;
+							}
+							if (!data.getTables().length) {
+								msg("<b>There is no data generated</b>");
+								return;
+							} else showReportResult(data);
+						});
+					}
+				}
+				$("#exec_btn").prop("disabled", false); // enable button
+			}
+
+			function showReportResult(result) {
+				var tables = result.getTables();
+				if (!tables) return;
+
+				for (var i = 0; i < tables.length; i++) {
+					var html =
+						"<b>" +
+						tables[i].label +
+						"</b><div class='wrap'><table style='width:100%'>";
+
+					var headers = tables[i].header;
+					html += "<tr>";
+					for (var j = 0; j < headers.length; j++)
+						html += "<th>" + headers[j] + "</th>";
+					html += "</tr>";
+
+					result.getTableRows(
+						i,
+						0,
+						tables[i].rows,
+						function (code, rows) {
+							if (code) {
+								msg(wialon.core.Errors.getErrorText(code));
+								return;
+							}
+
+							for (var j in rows) {
+								if (typeof rows[j].c == "undefined") continue;
+
+								var rankIndex = findRankIndex(headers);
+								var rank = getTableValue(rows[j].c[rankIndex]);
+								var rowClass = j % 2 == 1 ? "odd" : "";
+								var rowColor = getColorForRank(rank);
+
+								html +=
+									"<tr class='" +
+									rowClass +
+									"' style='background-color:" +
+									rowColor +
+									"'>";
+								for (var k = 0; k < rows[j].c.length; k++) {
+									var cellValue = getTableValue(rows[j].c[k]);
+									html += "<td>" + cellValue + "</td>";
+								}
+								html += "</tr>";
+							}
+							html += "</table>";
+							msg(html + "</div>");
+						},
+						this,
+						html
+					);
+				}
+			}
+
+			function findRankIndex(headers) {
+				// Add your logic to find the index of the column containing the rank
+				// For example, you can iterate through headers and check if the column
+				// name or any other criteria matches the rank column.
+				// Return the index of the rank column.
+
+				// Example logic:
+				for (var i = 0; i < headers.length; i++) {
+					if (headers[i] === "Rank") {
+						return i; // Return the index of the column with the name "Rank"
+					}
+				}
+
+				// If the rank column is not found, you might want to handle this case appropriately.
+				// For now, returning 1 as a default assuming rank is in the second column.
+				return 1;
+			}
+
+			function getColorForRank(rank) {
+				console.log("==================================the rank==========", rank);
+				// Add your logic to determine the color based on the rank
+				// For example, you can use a switch statement or if conditions
+				// to map different colors to different rank ranges.
+				// Return the appropriate color value.
+
+				// Example logic:
+				if (rank === 10.0) {
+					return "green"; // Color for rank 10.0
+				} else if (rank >= 9.8 && rank < 10.0) {
+					return "yellow"; // Color for rank between 9.8 and 10.0 (exclusive)
+				} else if (rank >= 9.7 && rank < 9.8) {
+					return "orange"; // Add a color for a different range if needed
+				} else {
+					return "red"; // Default color for other cases
+				}
+			}
+
+			function getTableValue(data) {
+				// calculate ceil value
+				if (typeof data == "object")
+					if (typeof data.t == "string") return data.t;
+					else return "";
+				else return data;
+			}
+
+			// execute when DOM ready
+			$(document).ready(function () {
+				$("#exec_btn").click(executeReport); // bind action to button click
+
+				wialon.core.Session.getInstance().initSession("https://hst-api.wialon.com"); // init session
+				// For more info about how to generate token check
+				// http://sdk.wialon.com/playground/demo/app_auth_token
+				wialon.core.Session.getInstance().loginToken(
+					"cff41ecd2f9615c24a95c8e9d906cde919EC3CF6C255BC15A58EFADDB09331959D754E6D",
+					"", // try to login
+					function (code) {
+						// login callback
+						// if error code - print error message
+						if (code) {
+							msg(wialon.core.Errors.getErrorText(code));
+							return;
+						}
+						msg("Logged successfully");
+						init(); // when login suceed then run init() function
+					}
+				);
+			});
+		</script>
+	</body>
+</html>
