@@ -88,6 +88,18 @@
         <td><ul id="columns"></ul></td>
       </tr>
       <tr>
+        <td>
+          <input
+            type="button"
+            onclick="selectSpecificCheckboxes()"
+            value="template 1"
+          />
+        </td>
+        <td>
+          <input type="button" value="Reset" onclick="unselectCheckboxes()" />
+        </td>
+      </tr>
+      <tr>
         <td colspan="2" style="text-align: center">
           <input type="button" value="Execute report" id="exec_btn" />
         </td>
@@ -99,7 +111,7 @@
       // Print message to log
 
       function msg(text) {
-        $('#log').prepend(text + '<br/>');
+        $("#log").prepend(text + "<br/>");
       }
 
       function init() {
@@ -111,21 +123,21 @@
         var unit_flags = wialon.item.Item.dataFlag.base;
 
         var sess = wialon.core.Session.getInstance(); // get instance of current Session
-        sess.loadLibrary('resourceReports'); // load Reports Library
+        sess.loadLibrary("resourceReports"); // load Reports Library
         sess.updateDataFlags(
           // load items to current session
           [
             {
               // 'avl_resource's specification
-              type: 'type',
-              data: 'avl_resource',
+              type: "type",
+              data: "avl_resource",
               flags: res_flags,
               mode: 0,
             },
             {
               // 'avl_unit's specification
-              type: 'type',
-              data: 'avl_unit',
+              type: "type",
+              data: "avl_unit",
               flags: unit_flags,
               mode: 0,
             },
@@ -139,10 +151,10 @@
               return;
             }
 
-            var res = sess.getItems('avl_resource'); // get loaded 'avl_resource's items
+            var res = sess.getItems("avl_resource"); // get loaded 'avl_resource's items
             if (!res || !res.length) {
               // check if resources found
-              msg('Resources not found');
+              msg("Resources not found");
               return;
             }
             for (
@@ -150,18 +162,18 @@
               i < res.length;
               i++ // construct Select object using found resources
             )
-              $('#res').append(
+              $("#res").append(
                 "<option value='" +
                   res[i].getId() +
                   "'>" +
                   res[i].getName() +
-                  '</option>'
+                  "</option>"
               );
 
-            var units = sess.getItems('avl_unit'); // get loaded 'avl_units's items
+            var units = sess.getItems("avl_unit"); // get loaded 'avl_units's items
             // check if units found
             if (!units || !units.length) {
-              msg('Units not found');
+              msg("Units not found");
               return;
             }
             for (
@@ -169,18 +181,20 @@
               i < units.length;
               i++ // construct Select object using found units
             )
-              $('#units').append(
+              $("#units").append(
                 "<option value='" +
                   units[i].getId() +
                   "'>" +
                   units[i].getName() +
-                  '</option>'
+                  "</option>"
               );
           }
         );
         drawCheckboxes();
-        $('#templ').change(drawCheckboxes);
+        $("#templ").change(drawCheckboxes);
       }
+
+      var selectedColumns = [];
 
       function drawCheckboxes() {
         // get available reports table
@@ -188,89 +202,126 @@
           code,
           data
         ) {
-          var selectedTmpl = $('#templ').val();
+          var selectedTmpl = $("#templ").val();
           var col = [];
-          var html = '';
+          var html = "";
+
+          // Define an array of column IDs and labels
+          var columns = [
+            { id: "driver_score", label: "Driver Score" },
+            { id: "acceleration", label: "Acceleration" },
+            { id: "brake", label: "Brake" },
+          ];
+
           for (var i = 0; i < data.length; i++) {
             if (data[i].n == selectedTmpl) {
-              //draw only selected report table
+              // draw only selected report table
               col = data[i].col;
 
-              // Add checkboxes for "Driver Name" and "Driver Score"
-              html +=
-                '<li><input class="rep_col" type="checkbox" id="driver_name"/><label for="driver_name">Driver Name</label></li>';
-              html +=
-                '<li><input class="rep_col" type="checkbox" id="driver_score"/><label for="driver_score">Driver Score</label></li>';
+              // Add checkboxes for predefined columns
+              for (var j = 0; j < columns.length; j++) {
+                html +=
+                  '<li><input class="rep_col" type="checkbox" id="' +
+                  columns[j].id +
+                  '"/><label for="' +
+                  columns[j].id +
+                  '">' +
+                  columns[j].label +
+                  "</label></li>";
+              }
 
-              for (var j = 0; j < col.length; j++) {
+              // Add checkboxes for dynamic columns
+              for (var k = 0; k < col.length; k++) {
                 // construct Select object using found report columns
-                if (col[j].l != '' && col[j].n != '') {
+                if (col[k].l != "" && col[k].n != "") {
+                  console.log(col[k].l);
                   html +=
                     '<li><input class="rep_col" type="checkbox" id="' +
-                    col[j].n +
+                    col[k].n +
                     '"/><label for="' +
-                    col[j].n +
+                    col[k].n +
                     '">' +
-                    col[j].l +
-                    '</label></li>';
+                    paintLabel(col[k].l) +
+                    "</label></li>";
                 }
               }
             }
           }
-          $('#columns').html(html);
+          $("#columns").html(html);
         });
+      }
+
+      function paintLabel(label) {
+        switch (label) {
+          case "Mileage":
+            return "Distance";
+            break;
+          case "Driver":
+            return "Driver name";
+            break;
+          case "Avg speed":
+            return "Speed";
+            break;
+          case "Duration":
+            return "Driving hours";
+            break;
+          default:
+            return label;
+            break;
+        }
       }
 
       function executeReport() {
         // execute selected report
         // get data from corresponding fields
-        var id_res = $('#res').val(),
-          templ = $('#templ').val(),
-          id_unit = $('#units').val(),
-          time = $('#interval').val();
+        var id_res = $("#res").val(),
+          templ = $("#templ").val(),
+          id_unit = $("#units").val(),
+          time = $("#interval").val();
         if (!id_res) {
-          msg('Select resource');
+          msg("Select resource");
           return;
         } // exit if no resource selected
         if (!id_unit) {
-          msg('Select unit');
+          msg("Select unit");
           return;
         } // exit if no unit selected
         var sess = wialon.core.Session.getInstance(); // get instance of current Session
         var res = sess.getItem(id_res); // get resource by id
         var to = sess.getServerTime(); // get current server time (end time of report time interval)
-        var from = to - parseInt($('#interval').val(), 10); // calculate start time of report
-        var columns = $('ul li .rep_col:checked'); // get columns, that need to be in a report
+        var from = to - parseInt($("#interval").val(), 12); // calculate start time of report
+        var columns = $("ul li .rep_col:checked"); // get columns, that need to be in a report
         // specify time interval object
+        console.log(columns);
         var interval = {
           from: from,
           to: to,
           flags: wialon.item.MReport.intervalFlag.absolute,
         };
 
-        var c = '',
-          cl = ''; // columns and columnsLabels variables
+        var c = "",
+          cl = ""; // columns and columnsLabels variables
         for (var i = 0; i < columns.length; i++) {
           // cycle to generate columns and columnsLabels
-          c += (c == '' ? '' : ',') + columns[i].id;
-          cl += (cl == '' ? '' : ',') + $(columns[i].nextSibling).text(); //.innerText;
+          c += (c == "" ? "" : ",") + columns[i].id;
+          cl += (cl == "" ? "" : ",") + $(columns[i].nextSibling).text(); //.innerText;
         }
-        $('#exec_btn').prop('disabled', true); // disable button (to prevent multiclick while execute)
+        $("#exec_btn").prop("disabled", true); // disable button (to prevent multiclick while execute)
         var template = {
           // fill template object
           id: 0,
           n: templ,
-          ct: 'avl_unit',
-          p: '',
+          ct: "avl_unit",
+          p: "",
           tbl: [
             {
               n: templ,
               l: $("#templ option[value='" + templ + "']").text(),
               c: c,
               cl: cl,
-              s: '',
-              sl: '',
-              p: '',
+              s: "",
+              sl: "",
+              p: "",
               sch: {
                 f1: 0,
                 f2: 0,
@@ -284,10 +335,8 @@
             },
           ],
         };
-        // for (var i = 0; i < units.length; i++) {
-        //console.log(units$('#units').val());
-        //}
 
+        console.log(template);
         res.execReport(
           template,
           id_unit,
@@ -296,79 +345,115 @@
 
           function (code, data) {
             // execReport template
-            $('#exec_btn').prop('disabled', false); // enable button
+            $("#exec_btn").prop("disabled", false); // enable button
             if (code) {
               msg(wialon.core.Errors.getErrorText(code));
               return;
             } // exit if error code
             if (!data.getTables().length) {
               // exit if no tables obtained
-              msg('<b>There is no data generated</b>');
+              msg("<b>There is no data generated</b>");
               return;
             } else showReportResult(data); // show report result
           }
         );
       }
 
+      function selectSpecificCheckboxes() {
+        // Replace 'checkbox1', 'checkbox2', etc., with the actual IDs you want to select
+        var specificCheckboxIds = [
+          "driver",
+          "driver_score",
+          "max_speed",
+          "mileage",
+          "acceleration",
+          "brake",
+          "duration",
+          "avg_speed",
+        ];
+
+        specificCheckboxIds.forEach(function (id) {
+          var checkbox = document.getElementById(id);
+          if (checkbox) {
+            checkbox.checked = true;
+          }
+        });
+      }
+
+      function unselectCheckboxes() {
+        var checkboxes = document.querySelectorAll("#columns input.rep_col");
+        checkboxes.forEach(function (checkbox) {
+          checkbox.checked = false;
+        });
+      }
+
       function showReportResult(result) {
         // show result after report execute
-        var tables = result.getTables(); // get report tables
+        var tables = result.getTables(
+          "driver_name",
+          "driver_score",
+          "distance",
+          "acceleration",
+          "brake",
+          "driving_hours",
+          "speed"
+        ); // get report tables
         if (!tables) return; // exit if no tables
         const date = new Date();
         const months = [
-          'Jan',
-          'Feb',
-          'Mar',
-          'Apr',
-          'May',
-          'Jun',
-          'Jul',
-          'Aug',
-          'Sep',
-          'Oct',
-          'Nov',
-          'Dec',
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
         ];
         let month = months[date.getMonth()];
         for (var i = 0; i < tables.length; i++) {
           // cycle on tables
           // html contains information about one table
           var html =
-            '<h1>' +
-            'Drivers Performance Report' +
-            '</h1>' +
+            "<h1>" +
+            "Drivers Performance Report" +
+            "</h1>" +
             '<table style="width:100%"><tr style="border:none">' +
             '<td style="border:none">' +
-            'Date/Time:    ' +
+            "Date/Time:    " +
             date.getDate() +
-            '-' +
+            "-" +
             month +
-            '-' +
+            "-" +
             date.getFullYear() +
-            ' ' +
+            " " +
             date.getHours() +
-            ':' +
+            ":" +
             date.getMinutes() +
-            ':' +
+            ":" +
             date.getSeconds() +
-            '</td>' +
+            "</td>" +
             '<td  style="border:none">' +
-            'GMT Time Zone:    ' +
+            "GMT Time Zone:    " +
             date +
-            '</td></tr></table>' +
-            '<b>' +
+            "</td></tr></table>" +
+            "<b>" +
             tables[i].label +
             "</b><div class='wrap'><table style='width:100%'>";
 
           var headers = tables[i].header; // get table headers
-          html += '<tr>'; // open header row
-          for (
-            var j = 0;
-            j < headers.length;
-            j++ // add header
-          )
-            html += '<th>' + headers[j] + '</th>';
-          html += '</tr>'; // close header row
+
+          console.log("Number of headers:", headers.length);
+          html += "<tr>"; // open header row
+
+          for (var j = 0; j < tables[i].header.length; j++) {
+            html += "<th>" + tables[i].header[j] + "</th>";
+          }
+          html += "</tr>"; // close header row
           result.getTableRows(
             i,
             0,
@@ -381,45 +466,46 @@
               } // exit if error code
               for (var j in rows) {
                 // cycle on table rows
-                if (typeof rows[j].c == 'undefined') continue; // skip empty rows
-                html += '<tr' + (j % 2 == 1 ? " class='odd' " : '') + '>'; // open table row
+                if (typeof rows[j].c == "undefined") continue; // skip empty rows
+                html += "<tr" + (j % 2 == 1 ? " class='odd' " : "") + ">"; // open table row
                 for (
                   var k = 0;
                   k < rows[j].c.length;
                   k++ // add ceils to table
-                )
-                  html += '<td>' + getTableValue(rows[j].c[k]) + '</td>';
-                html += '</tr>'; // close table row
+                ) {
+                  html += "<td>" + getTableValue(rows[j].c[k]) + "</td>";
+                }
+                html += "</tr>"; // close table row
               }
-              html += '</table>';
-              msg(html + '</div>');
+              html += "</table>";
+              msg(html + "</div>");
             },
             this,
             html
           );
+          console.log(result);
         }
       }
 
       function getTableValue(data) {
-        // calculate ceil value
-        if (typeof data == 'object')
-          if (typeof data.t == 'string') return data.t;
-          else return '';
+        if (typeof data == "object")
+          if (typeof data.t == "string") return data.t;
+          else return "";
         else return data;
       }
 
       // execute when DOM ready
       $(document).ready(function () {
-        $('#exec_btn').click(executeReport); // bind action to button click
+        $("#exec_btn").click(executeReport); // bind action to button click
 
         wialon.core.Session.getInstance().initSession(
-          'https://hst-api.wialon.com'
+          "https://hst-api.wialon.com"
         ); // init session
         // For more info about how to generate token check
         // http://sdk.wialon.com/playground/demo/app_auth_token
         wialon.core.Session.getInstance().loginToken(
-          'cff41ecd2f9615c24a95c8e9d906cde919EC3CF6C255BC15A58EFADDB09331959D754E6D',
-          '', // try to login
+          "cff41ecd2f9615c24a95c8e9d906cde919EC3CF6C255BC15A58EFADDB09331959D754E6D",
+          "", // try to login
           function (code) {
             // login callback
             // if error code - print error message
@@ -427,7 +513,7 @@
               msg(wialon.core.Errors.getErrorText(code));
               return;
             }
-            msg('Logged successfully');
+            msg("Logged successfully");
             init(); // when login suceed then run init() function
           }
         );
